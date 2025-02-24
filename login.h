@@ -32,15 +32,9 @@
 |__/|__/_____/_/  |_/_/ |_/  /_/    \__,_/____/____/ |__/|__/\____/\___/_/   \__/\___/_/                                                                                             
 */
 
+const char* ssid = "{WLAN Name}";
+const char* password = "{Wlan Passwort}";
 
-// const char* ssid = "WaldNet";
-// const char* password = "WaldWald";
-
-const char* ssid = "Stonehenge";
-const char* password = "Rad5isli";
-
-// const char* ssid = "Stonehenge!";
-// const char* password = "Rad5isli!";
 
 
 
