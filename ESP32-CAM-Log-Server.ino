@@ -6,6 +6,7 @@ Tasks
 */
 
 #include <WiFi.h>           //Für das Wlan
+#include "FS.h"             //Für die SD Karte
 #include <SD_MMC.h>         //Für die SD Karte
 #include <Arduino.h>        //Für default Arduino
 #include <WiFiClient.h>     //Keine Ahnung
@@ -17,11 +18,32 @@ Tasks
 #include <ArduinoOTA.h>     //Für das akzeptieren der OTA    //OTA
 
 #include "login.h"          //Für Passwörter
-//#include "sd_read_write.h"  //Für die SD Karte
 
 WebServer server(80);
 unsigned long previousMillis;
 // RemoteSerial Serial;
+
+void handleRREADLOG(fs::FS &fs) {
+  String fullURI = server.uri();
+  String fileContent = "";
+  if (fullURI.startsWith("/" URL_PREFIX_READLOG "/")) {
+    String Computer = fullURI.substring(URL_PREFIX_LENGTH_READLOG);
+    File file = fs.open("/Log/" + Computer + "/log" + Day() + ".txt", FILE_READ);
+    if (!file) {
+      Serial.println("File not found or can't open the file.");
+      server.send(400, "text/plain", String("File not found or can't open the file."));
+    } else {
+      while (file.available()) {
+        fileContent += (char)file.read();
+      }
+      file.close();
+      Serial.println("The log is read");
+      server.send(200, "text/plain", String(fileContent));
+    }
+  } else {
+      server.send(400, "text/plain", String("Failed: No directory provided!"));
+  }
+}
 
 void handleADDPC(fs::FS &fs) {
   int control = 0;
@@ -347,7 +369,8 @@ void handleRoot() {
   message += "http://" + WiFi.localIP().toString() +"/\n";
   message += "http://" + WiFi.localIP().toString() +"/reboot\n";
   message += "http://" + WiFi.localIP().toString() +"/" + URL_PREFIX_COUNTER + "/{Computer}/{List}\n";
-  message += "http://" + WiFi.localIP().toString() +"/" + URL_PREFIX_LOG + "/{Computer}/{Message}\n";  
+  message += "http://" + WiFi.localIP().toString() +"/" + URL_PREFIX_LOG + "/{Computer}/{Message}\n";
+  message += "http://" + WiFi.localIP().toString() +"/" + URL_PREFIX_READLOG + "/{Computer}\n";
   message += "http://" + WiFi.localIP().toString() +"/" + URL_PREFIX_READ + "/{Computer}/{List}\n";
   message += "http://" + WiFi.localIP().toString() +"/" + URL_PREFIX_MKDIR + "/{Full path}\n";
   message += "http://" + WiFi.localIP().toString() +"/" + URL_PREFIX_RM + "/{full path, alsow working with file.}\n";
@@ -376,6 +399,8 @@ void NotFound() {
     handleADDPC(SD_MMC);
   } else if (server.uri().startsWith("/" URL_PREFIX_RMPC "/")) {
     handleRMPC(SD_MMC);
+  } else if (server.uri().startsWith("/" URL_PREFIX_READLOG "/")) {
+    handleRREADLOG(SD_MMC);
   } else {
     server.send(404, "text/plain", "Not Found while searching for " + server.uri());
   }
@@ -483,13 +508,13 @@ void initTime() {
 
 void initOTA() {
   // Port defaults to 3232
-  ArduinoOTA.setPort(3232);
+  ArduinoOTA.setPort(OTA_Port);
 
   // Hostname defaults to esp3232-[MAC]
   ArduinoOTA.setHostname(ESP32_NAME);
 
   // No authentication by default
-  ArduinoOTA.setPassword("admin");
+  ArduinoOTA.setPassword(OTA_Password);
 
   // Password can be set with it's md5 value as well
   // MD5(admin) = 21232f297a57a5a743894a0e4a801fc3
@@ -526,6 +551,10 @@ void initOTA() {
 
 void setup() {
   pinMode(LEDPINN, OUTPUT);
+  digitalWrite(LEDPINN, LOW);
+  delay(100);
+  digitalWrite(LEDPINN, HIGH);
+  delay(100);
   digitalWrite(LEDPINN, LOW);
   Serial.begin(115200);
   initSD();
