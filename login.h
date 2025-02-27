@@ -28,6 +28,9 @@
 #define SD_MMC_CLK  39 //SD Card Pin
 #define SD_MMC_D0   40 //SD Card Pin
 
+#define DHT22_PIN  1 // ESP32 pin GPIO21 connected to DHT22 sensor
+#define DHT22_SENSOR DHT22
+
 /*
  _       ____    ___    _   __   ____                                           __           
 | |     / / /   /   |  / | / /  / __ \____ ____________      ______  ___  _____/ /____  _____

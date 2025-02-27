@@ -1,7 +1,5 @@
 /* 
 Tasks
-  Del Dir
-  See Log
   See Status of all 
 */
 
@@ -16,12 +14,47 @@ Tasks
 #include <ESPmDNS.h>        //Für den Hostname               //OTA
 #include <WiFiUdp.h>        //Für das UDP over Wifi          //OTA
 #include <ArduinoOTA.h>     //Für das akzeptieren der OTA    //OTA
-
 #include "login.h"          //Für Passwörter
+#include <DHT.h>            //Für den DHT Sensor
 
 WebServer server(80);
 unsigned long previousMillis;
-// RemoteSerial Serial;
+DHT dht(DHT22_PIN, DHT22);
+unsigned long lastDHTRead = 0;
+
+void handleDHT() {
+  if (millis() - lastDHTRead < 2000) return;  // Alle 2 Sekunden messen!
+  lastDHTRead = millis();
+  float humi  = dht.readHumidity();
+  float tempC = dht.readTemperature();
+  WiFiClient client = server.client();
+
+  // if ( isnan(tempC) || isnan(humi)) {
+  //   Serial.println("Failed to read from DHT22 sensor!");
+  //   server.send(400, "text/plain", String("Failed to read from DHT22 sensor!"));
+  // } else {
+    Serial.print("Humidity: ");
+    Serial.print(humi);
+    Serial.print("%");
+
+    Serial.print("  |  ");
+
+    Serial.print("Temperature: ");
+    Serial.print(tempC);
+    Serial.print("°C");
+    if (!client.connected()) {
+      client.stop();
+      return;
+    }
+    client.println(F("HTTP/1.1 200 OK"));
+    client.println(F("Content-Type: application/json"));
+    client.println(F("Connection: close\r\n"));
+    String buffer = "{\"ok\":true, \"Temperature\":" + String(tempC) + ", \"Humidity\":" + String(humi) + "}";
+    client.println(buffer);  // Send the constructed JSON to the client
+    client.stop();
+  // }
+
+}
 
 void handleRREADLOG(fs::FS &fs) {
   String fullURI = server.uri();
@@ -368,6 +401,7 @@ void handleRoot() {
   message += "Version 1.0:\n";
   message += "http://" + WiFi.localIP().toString() +"/\n";
   message += "http://" + WiFi.localIP().toString() +"/reboot\n";
+  message += "http://" + WiFi.localIP().toString() +"/dht\n";
   message += "http://" + WiFi.localIP().toString() +"/" + URL_PREFIX_COUNTER + "/{Computer}/{List}\n";
   message += "http://" + WiFi.localIP().toString() +"/" + URL_PREFIX_LOG + "/{Computer}/{Message}\n";
   message += "http://" + WiFi.localIP().toString() +"/" + URL_PREFIX_READLOG + "/{Computer}\n";
@@ -469,6 +503,7 @@ void initSD() {
 
 void initServer() {
   server.on("/reboot", handleReboot);  // Wenn /run aufgerufen wird, handleRun
+  server.on("/dht", handleDHT);
   server.on("/", handleRoot);
   server.onNotFound(NotFound);
   server.begin();
@@ -562,10 +597,11 @@ void setup() {
   initTime();
   initServer();
   initOTA();
+  dht.begin();
   Serial.println("Time is: " + Time());
   Serial.println("Server startup succesfull!");
+  delay(2000);
   digitalWrite(LEDPINN, HIGH);
-
 }
 
 
